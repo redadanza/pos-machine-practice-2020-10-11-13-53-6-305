@@ -13,7 +13,6 @@ public class ItemDataLoader {
         itemInfos.add(item1Info);
         itemInfos.add(item2Info);
         itemInfos.add(item3Info);
-
         return itemInfos;
     }
 
