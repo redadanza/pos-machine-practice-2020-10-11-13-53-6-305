@@ -1,92 +1,92 @@
 package pos.machine;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
+import static pos.machine.ItemDataLoader.loadAllItemInfos;
+
 public class PosMachine {
+    int itemsTotal;
+    int total;
     public String printReceipt(List<String> barcodes) {
 
-        List<String> items = getBarcodeValues(barcodes);
-        int totalPrice = getTotalPrice(barcodes);
-        String finalReciept = getFinalReciept(items, totalPrice);
-        System.out.println(finalReciept);
+        List<Details> itemsList = getItemDetails(barcodes);
+        getQuantity(barcodes, itemsList);
+        Reciept reciept = getItemsInfo(itemsList);
+        return getFinalRecipt(reciept);
 
-        //System.out.println(items);
-        //System.out.println("Total: " + totalPrice + " (yuan)");
-
-        return finalReciept;
     }
-
-    private String getFinalReciept(List<String> items, int totalPrice) {
-        int i=0;
-        String finalOutput = "";
-        for(i=0;i<=16;i++)
-        {
-            finalOutput = finalOutput.concat(items.get(i));
+    private String getFinalRecipt(Reciept reciept){
+        String finalOutput = "***<store earning no money>Receipt***\n";
+        for (Details details : reciept.getItemDetail()) {
+            finalOutput = finalOutput.concat(String.format("Name: %s, ", details.getName()));
+            finalOutput = finalOutput.concat(String.format("Quantity: %s, ",details.getQuantity()));
+            finalOutput =  finalOutput.concat(String.format("Unit price: %s (yuan), ", details.getUnitPrice()));
+            finalOutput =  finalOutput.concat(String.format("Subtotal: %s (yuan)", details.getSubtotal()));
+            finalOutput =  finalOutput.concat("\n");
         }
+        finalOutput = finalOutput.concat("----------------------\n");
+        finalOutput = finalOutput.concat("Total: " + reciept.getReceiptTotal());
+        finalOutput = finalOutput.concat(" (yuan)\n**********************");
 
-        finalOutput = finalOutput.concat("\nTotal: " + totalPrice + " (yuan)");
 
         return finalOutput;
     }
+    private Reciept getItemsInfo(List<Details> itemsList) {
+        getSubtotal(itemsList);
+        itemsTotal = getTotalPrice(itemsList);
+        return new Reciept(itemsList,itemsTotal);
+    }
 
-    private int getTotalPrice(List<String> barcodes) {
-        int total=0;
-        String barcodeee;
-        List<ItemInfo> allInfo = ItemDataLoader.loadAllItemInfos();
-        for(int i = 0; i<8; i++) {
-            barcodeee= barcodes.get(i);
-            for (ItemInfo infos : allInfo) {
-                if (infos.getBarcode() == barcodeee) {
-                    total += infos.getPrice();
-                }
-            }
+    private int getTotalPrice(List<Details> itemsList) {
+        total = 0;
+        for (Details details : itemsList) {
+            total += details.getSubtotal();
         }
         return total;
     }
 
-    private List<String> getBarcodeValues(List<String> barcodes) {
-        List<String> itemsInfo = getItemsInfo(barcodes);
-
-        return itemsInfo;
-    }
-
-    private List<String> getItemsInfo(List<String> barcodes) {
-        List<String> itemDetails = getItemDetails(barcodes);
-        List<String> itemWithSubtotal = getSubtotal(itemDetails);
-
-        return itemDetails;
-    }
-
-    private List<String> getSubtotal(List<String> itemDetails) {
-
-        Map<String, Integer> map= new HashMap<String, Integer>();
-        for(String s: itemDetails){
-            map.put(s,Collections.frequency(itemDetails,s));
+    private void getSubtotal(List<Details> itemsList) {
+        for (Details details : itemsList) {
+            details.setSubtotal(details.getQuantity() * details.getUnitPrice());
         }
-        //System.out.println("map is: " + map);
-        return itemDetails;
     }
 
-    private List<String> getItemDetails(List<String> barcodes) {
-        String barcodeee;
-        List<ItemInfo> allInfo = ItemDataLoader.loadAllItemInfos();
-        ArrayList<String> recipt = new ArrayList<String>();
-        for(int i = 0; i<=8; i++) {
-            barcodeee= barcodes.get(i);
-            for (ItemInfo infos : allInfo) {
-                if (infos.getBarcode() == barcodeee) {
-                    //recipt.add(infos.getBarcode());
-                    recipt.add("Name: " + infos.getName());
-                    recipt.add("Unit Price: " + Integer.toString(infos.getPrice()));
+    private void getQuantity(List<String> barcodes, List<Details> itemsList) {
+        int quantity = 0;
+        for (Details details: itemsList) {
+            for (String barcode : barcodes) {
+                quantity = details.getBarcode().equals(barcode) ? quantity+1
+                         : quantity;
+            }
+            details.setQuantity(quantity);
+            quantity = 0;
+        }
+    }
 
+    private List<Details> getItemDetails(List<String> barcodes) {
+        List<String> barcodeList = new ArrayList<>();
+        List<Details> recipt = new ArrayList<>();
+        List<ItemInfo> itemInfos = loadAllItemInfos();
+
+        for (String data : barcodes) {
+            if(barcodeList.contains(data)){
+                //System.out.println(data);
+            }
+            else{
+                barcodeList.add(data);
+            }
+        }
+        for (String barcode : barcodeList) {
+            for (ItemInfo infos : itemInfos) {
+                if (infos.getBarcode().equals(barcode)) {
+                    Details items = new Details(infos.getBarcode(),infos.getName(),0,infos.getPrice(),0);
+                    recipt.add(items);
                 }
             }
-            recipt.add("\n");
         }
         return recipt;
     }
